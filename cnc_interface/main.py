@@ -3,6 +3,8 @@ import tkinter
 import rotary_encoder
 import pydantic
 
+from cnc_interface import gui, machine
+
 
 class MachineSettings(pydantic.BaseModel):
     jog_feed_rate: float = pydantic.Field(alias="jogFeedRate")
@@ -51,9 +53,7 @@ def on_button_up(number: int):
 
 
 def main():
-    window = tkinter.Tk()
-    window.attributes("-fullscreen", True)
-
+    window, cnc = gui.create_window()
 
     with rotary_encoder.connect(
         clk_pin=0,
@@ -80,9 +80,9 @@ def main():
         on_button_down=on_button_down(2),
         on_button_up=on_button_up(2),
     ):
-        window.mainloop()
+        # window.mainloop()
+        pass
 
 
 if __name__ == "__main__":
-    # main()
-    pass
+    main()
