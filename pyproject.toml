@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "cnc-interface"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "cnc_interface"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+rpi-rotary-encoder = "^0.2.0"
+watchdog = "^2.2.1"
+pydantic = "^1.10.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
