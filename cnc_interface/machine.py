@@ -1,6 +1,8 @@
 from __future__ import annotations
+from contextlib import contextmanager
 
 import dataclasses
+from typing import Callable, Generic, Iterator, TypeVar
 import pydantic
 import requests
 import tkinter
@@ -15,32 +17,30 @@ class ConnectionError(Exception):
 
 
 class MachineSettings(pydantic.BaseModel):
-    jog_feed_rate: float = pydantic.Field(alias="jogFeedRate")
-    jog_step_size_xy: float = pydantic.Field(alias="jogStepSizeXy")
-    jog_step_size_y: float = pydantic.Field(alias="jogStepSizeY")
-    preferred_units: str = pydantic.Field(alias="preferredUnits")
+    jog_feed_rate: float = pydantic.Field(alias="jogFeedRate", default=0)
+    jog_step_size_xy: float = pydantic.Field(alias="jogStepSizeXy", default=0)
+    jog_step_size_y: float = pydantic.Field(alias="jogStepSizeY", default=0)
+    preferred_units: str = pydantic.Field(alias="preferredUnits", default=0)
 
 
 class MachineCoords(pydantic.BaseModel):
-    units: str
-    x: float
-    y: float
-    z: float
+    units: str = "MM"
+    x: float = 0
+    y: float = 0
+    z: float = 0
 
 
 class MachineStatus(pydantic.BaseModel):
-    state: str
-    machine_coord: MachineCoords = pydantic.Field(alias="machineCoord")
-    work_coord: MachineCoords = pydantic.Field(alias="workCoord")
-    spindle_speed: float = pydantic.Field(alias="spindleSpeed")
+    state: str = "UNKNOWN"
+    machine_coord: MachineCoords = pydantic.Field(alias="machineCoord", default_factory=MachineCoords)
+    work_coord: MachineCoords = pydantic.Field(alias="workCoord", default_factory=MachineCoords)
+    spindle_speed: float = pydantic.Field(alias="spindleSpeed", default=0)
 
 
 def send_request(request: requests.Request) -> requests.Response:
     with requests.Session() as session:
         try:
-            print("send1")
-            response = session.send(request.prepare(), timeout=(3.05, 1))
-            print("send2")
+            response = session.send(request.prepare(), timeout=(1, 1))
         except requests.ConnectionError as e:
             raise ConnectionError() from e
     if response.status_code >= 400:
@@ -48,80 +48,73 @@ def send_request(request: requests.Request) -> requests.Response:
     return response
 
 
-
-class LoopingThread(threading.Thread):
-    def __init__(self, name: str) -> None:
-        self.stop_flag = threading.Event()
+class _UpdateThread(threading.Thread):
+    def __init__(self, value: SelfUpdatingValue):
+        self._stop_flag = threading.Event()
+        self._value = value
+        name = "updater-for-" + repr(value)
         super().__init__(name=name, daemon=True)
-    
-    def loop(self) -> None:
-        return NotImplemented
 
     def run(self) -> None:
-        print(self.getName())
-        while not self.stop_flag.is_set():
-            self.loop()
+        while not self._stop_flag.is_set():
+            self._value.update()
     
     def stop(self) -> None:
-        self.stop_flag.set()
+        self._stop_flag.set()
+        self.join()
 
 
-class UGSClient(LoopingThread):
-    def __init__(self) -> None:
-        self._queue = collections.deque()
-        super().__init__("ugs-client")
-
-    def loop():
-        pass
+_T = TypeVar("_T", bound=pydantic.BaseModel)
 
 
-class StatusThread(LoopingThread):
-    def __init__(self, machine: Machine) -> None:
-        self.machine = machine
-        super().__init__("machine-status-thread")
-    
-    def loop(self) -> None:
-        self.machine.update_status()
-        time.sleep(0.2)
+@dataclasses.dataclass
+class SelfUpdatingValue(Generic[_T]):
+    _value: _T
+    _fetch_new_value: Callable[[], _T]
+    _lock: threading.Lock = dataclasses.field(default_factory=threading.Lock)
+
+    def __post_init__(self) -> None:
+        self._update_thread = _UpdateThread(self)
+
+    def update(self) -> None:
+        new_value = self._fetch_new_value()
+        with self._lock:
+            self._value = new_value
+
+    def value(self) -> _T:
+        with self._lock:
+            return self._value.copy(deep=True)
+
+    @contextmanager
+    def enabled(self) -> Iterator[None]:
+        self._update_thread.start()
+        try:
+            yield
+        finally:
+            self._update_thread.stop()
 
 
 @dataclasses.dataclass
 class Machine:
-    def __init__(self, url: str = "http://192.167.2.223:8080/"):
-        self.url = url
-        self.status_error = tkinter.BooleanVar()
+    url: str = "http://192.168.2.223:8080/"
+    has_connection: bool = False
 
-        self.machine_x = tkinter.DoubleVar()
-        self.machine_y = tkinter.DoubleVar()
-        self.machine_z = tkinter.DoubleVar()
+    def __post_init__(self) -> None:
+        self.machine_status = SelfUpdatingValue(MachineStatus(), self._fetch_machine_status)
 
-        self.work_x = tkinter.DoubleVar()
-        self.work_y = tkinter.DoubleVar()
-        self.work_z = tkinter.DoubleVar()
-
-        self.status_tread = StatusThread(self)
-        self.status_tread.start()
-
-    def update_status(self):
-        print("foo")
+    def _fetch_machine_status(self) -> MachineStatus:
         try:
-            print("bar")
             response = send_request(
                 requests.Request("GET", self.url + "api/v1/status/getStatus")
             )
         except ConnectionError:
-            print("buzz")
-            self.status_error.set(True)
-            return
-        print("machine_status")
-        self.status_error.set(False)
-        machine_status = MachineStatus(**response.json())
-
-        self.machine_x.set(machine_status.machine_coord.x)
-        self.machine_y.set(machine_status.machine_coord.y)
-        self.machine_z.set(machine_status.machine_coord.z)
-
-        self.work_x.set(machine_status.work_coord.x)
-        self.work_y.set(machine_status.work_coord.y)
-        self.work_z.set(machine_status.work_coord.z)
-
+            self.has_connection = False
+            return MachineStatus()
+        
+        self.has_connection = True
+        return MachineStatus(**response.json())
+    
+    @contextmanager
+    def syncing(self) -> Iterator[None]:
+        with self.machine_status.enabled():
+            yield

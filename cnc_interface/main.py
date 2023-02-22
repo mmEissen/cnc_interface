@@ -53,7 +53,7 @@ def on_button_up(number: int):
 
 
 def main():
-    window, cnc = gui.create_window()
+    cnc = machine.Machine()
 
     with rotary_encoder.connect(
         clk_pin=0,
@@ -79,10 +79,10 @@ def main():
         on_counter_clockwise_turn=on_counter_clockwise_turn(2),
         on_button_down=on_button_down(2),
         on_button_up=on_button_up(2),
-    ):
-        # window.mainloop()
-        pass
+    ), cnc.syncing():
+        gui.launch_window(cnc)
 
 
 if __name__ == "__main__":
     main()
+    pass
