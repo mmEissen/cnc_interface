@@ -251,6 +251,16 @@ def decrease(number: float, min_value: float, max_value: float, factor: float = 
     return max(min(number, max_value), min_value)
 
 
+
+STEP_SIZES = [
+    0.01,
+    0.05,
+    0.1,
+    0.5,
+    1,
+    5,
+]
+
 SHORT_PRESS_SECONDS = 0.5
 
 @dataclasses.dataclass
@@ -262,8 +272,8 @@ class Controls:
     z_dial: Dial
 
     max_feedrate: float = 1000
-    fine_feedrate: float = 50
-    step_size_multiplier: float = 1 / 1000
+    fine_feedrate: float = 5
+    step_size_multiplier: float = 5 / 1000
 
     max_spindle_speed: float = 10_000
     min_spindle_speed: float = 100
@@ -291,7 +301,8 @@ class Controls:
         pass
 
     def step_size(self) -> float:
-        return self.step_size_multiplier * self._feedrate
+        goal_step_size = self.step_size_multiplier * self._feedrate
+        return min(STEP_SIZES, key=lambda s: abs(s - goal_step_size))
     
     def toggle_feedrate(self) -> None:
         if self._feedrate == self.fine_feedrate:
@@ -314,7 +325,8 @@ class Controls:
 
     def on_x_cw(self) -> None:
         if self._is_x_pressed:
-            pass
+            self._feedrate = increase(self._feedrate, 0, self.max_feedrate)
+            self._post_settings()
         else:
             self._when_x_down = 0
             self.ugs_client.jog(1, 0, 0)
@@ -340,7 +352,8 @@ class Controls:
 
     def on_x_ccw(self) -> None:
         if self._is_x_pressed:
-            pass
+            self._feedrate = decrease(self._feedrate, 0, self.max_feedrate)
+            self._post_settings()
         else:
             self._when_x_down = 0
             self.ugs_client.jog(-1, 0, 0)
