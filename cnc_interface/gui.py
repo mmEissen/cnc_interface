@@ -71,10 +71,10 @@ def launch_window(cnc: machine.DigitalReadout) -> None:
 
     buttons_frame = tkinter.Frame(second_row_frame)
 
-    button_reset_zero = tkinter.Button(buttons_frame, text="RESET\nZERO", font=mono_font, width=10, height=4)
+    button_reset_zero = tkinter.Button(buttons_frame, text="RESET\nZERO", font=mono_font, width=7, height=4)
     button_reset_zero.pack()
 
-    button_goto_zero = tkinter.Button(buttons_frame, text="GO TO\nZERO", font=mono_font, width=10, height=4)
+    button_goto_zero = tkinter.Button(buttons_frame, text="GO TO\nZERO", font=mono_font, width=7, height=4)
     button_goto_zero.pack()
 
     buttons_frame.grid(row=0, column=1)
@@ -101,11 +101,11 @@ def launch_window(cnc: machine.DigitalReadout) -> None:
 
         spindle_settings = machine.spindle_settings
         label_spindle_status.config(text="ON" if spindle_settings.is_on else "OFF")
-        label_spindle_speed.config(text=f"{spindle_settings.speed: > 7,.0f}  RPM")
+        label_spindle_speed.config(text=f"{spindle_settings.speed: >7,.0f}  RPM")
 
         machine_settings = machine.machine_settings
-        label_feed_rate.config(text=f"{machine_settings.jog_feed_rate: > 7.2f} mm/s")
-        label_step_size.config(text=f"{machine_settings.jog_step_size_xy: > 7.2f}   mm")
+        label_feed_rate.config(text=f"{machine_settings.jog_feed_rate: >7.2f} mm/s")
+        label_step_size.config(text=f"{machine_settings.jog_step_size_xy: >7.2f}   mm")
 
     while True:
         sync_model()
