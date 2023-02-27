@@ -6,7 +6,7 @@ UPDATE_DELAY = 100
 
 
 def launch_window(cnc: machine.DigitalReadout) -> None:
-    mono_font = ("Courier", 17)
+    mono_font = ("Courier", 24)
 
     root = tkinter.Tk()
 
@@ -71,19 +71,15 @@ def launch_window(cnc: machine.DigitalReadout) -> None:
 
     buttons_frame = tkinter.Frame(second_row_frame)
 
-    button_reset_zero = tkinter.Button(buttons_frame, text="RESET\nZERO", font=mono_font, width=7, height=4)
+    button_reset_zero = tkinter.Button(buttons_frame, text="RESET\nZERO", font=mono_font, width=7, height=4, command=cnc.reset_zero)
     button_reset_zero.pack()
 
-    button_goto_zero = tkinter.Button(buttons_frame, text="GO TO\nZERO", font=mono_font, width=7, height=4)
+    button_goto_zero = tkinter.Button(buttons_frame, text="GO TO\nZERO", font=mono_font, width=7, height=4, command=cnc.go_to_zero)
     button_goto_zero.pack()
 
     buttons_frame.grid(row=0, column=1)
 
-
     second_row_frame.pack()
-
-
-
 
     def sync_model():
         machine = cnc.machine.value()

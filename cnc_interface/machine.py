@@ -109,6 +109,7 @@ class UGSClient:
         if response.status_code >= 400:
             self.has_connection = False
             raise ConnectionError()
+        self.has_connection = True
         return response
 
     def get_machine_status(self) -> MachineStatus:
@@ -170,6 +171,32 @@ class UGSClient:
             )
         except ConnectionError:
             return
+    
+    def reset_zero(self) -> None:
+        try:
+            self._send_request(
+                requests.Request(
+                    "GET", 
+                    f"http://{self.ip_address}:8080/api/v1/machine/resetToZero", 
+                )
+            )
+        except ConnectionError:
+            return
+    
+    def go_to_zero(self) -> None:
+        json = {
+            "commands": "G53 G0 Z0\nG90 G0 X0 Y0\nG90 G0 Z0"
+        }
+        try:
+            self._send_request(
+                requests.Request(
+                    "POST", 
+                    f"http://{self.ip_address}:8080/api/v1/machine/sendGcode",
+                    json=json
+                )
+            )
+        except ConnectionError:
+            return
         
 
 
@@ -192,6 +219,12 @@ class DigitalReadout:
             machine_settings=machine_settings,
             spindle_settings=self.controls.get_spindle_settings(),
         )
+
+    def reset_zero(self) -> None:
+        self.ugs_client.reset_zero()
+    
+    def go_to_zero(self) -> None:
+        self.ugs_client.go_to_zero()
 
     @contextmanager
     def syncing(self) -> Iterator[None]:
