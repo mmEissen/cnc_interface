@@ -49,15 +49,17 @@ class Machine(pydantic.BaseModel):
 
 
 class _UpdateThread(threading.Thread):
-    def __init__(self, value: SelfUpdatingValue):
+    def __init__(self, value: SelfUpdatingValue, update_delay_seconds: float):
         self._stop_flag = threading.Event()
         self._value = value
+        self._update_delay_seconds = update_delay_seconds
         name = "updater-for-" + repr(value)
         super().__init__(name=name, daemon=True)
 
     def run(self) -> None:
         while not self._stop_flag.is_set():
             self._value.update()
+            time.sleep(self._update_delay_seconds)
     
     def stop(self) -> None:
         self._stop_flag.set()
@@ -71,10 +73,11 @@ _T = TypeVar("_T", bound=pydantic.BaseModel)
 class SelfUpdatingValue(Generic[_T]):
     _value: _T
     _fetch_new_value: Callable[[], _T]
+    _update_delay_seconds: float = 0.1
     _lock: threading.Lock = dataclasses.field(default_factory=threading.Lock)
 
     def __post_init__(self) -> None:
-        self._update_thread = _UpdateThread(self)
+        self._update_thread = _UpdateThread(self, self._update_delay_seconds)
 
     def update(self) -> None:
         new_value = self._fetch_new_value()

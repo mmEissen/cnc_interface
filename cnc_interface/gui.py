@@ -1,8 +1,10 @@
 import tkinter
 from cnc_interface import machine
+import subprocess
 
 
-UPDATE_DELAY = 100
+def turn_off_screen() -> None:
+    subprocess.run("xset -display :0 s activate", shell=True)
 
 
 def launch_window(cnc: machine.DigitalReadout) -> None:
@@ -80,6 +82,8 @@ def launch_window(cnc: machine.DigitalReadout) -> None:
     buttons_frame.grid(row=0, column=1)
 
     second_row_frame.pack()
+
+    button_turn_off_screen = tkinter.Button(root, text="SCREEN OFF", font=mono_font, command=turn_off_screen).pack()
 
     def sync_model():
         machine = cnc.machine.value()

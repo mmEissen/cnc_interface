@@ -1,7 +1,11 @@
+import socket
+
 from cnc_interface import gui, machine
 
 
 def main():
+    socket.setdefaulttimeout(1)
+
     ugs_client = machine.UGSClient("192.168.2.223")
     controls = machine.Controls(
         ugs_client,
